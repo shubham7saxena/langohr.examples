@@ -2,8 +2,9 @@
   :description "Various examples for Langohr documentation"
   :min-lein-version "2.5.1"
   :license {:name "Eclipse Public License"}
-  :dependencies [[org.clojure/clojure     "1.6.0"]
-                 [com.novemberain/langohr "3.0.1"]]
+  :dependencies [[mount "0.1.16"]
+                 [org.clojure/clojure     "1.10.0"]
+                 [com.novemberain/langohr "5.0.0"]]
   :source-paths  ["src/clojure"]
   :url "https://github.com/clojurewerkz/langohr.examples"
   :repositories {"sonatype" {:url "http://oss.sonatype.org/content/repositories/releases"

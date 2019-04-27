@@ -1,6 +1,7 @@
 (ns clojurewerkz.langohr.examples.recovery.example1
   (:gen-class)
   (:require [langohr.core      :as rmq]
+            [mount.core :as mount :refer [defstate start]]
             [langohr.channel   :as lch]
             [langohr.queue     :as lq]
             [langohr.exchange  :as lx]
@@ -14,28 +15,39 @@
   (println (format "[consumer] Received a message: %s"
                    (String. payload "UTF-8"))))
 
-(defn start-consumer
-  [ch ^String q]
-  (lq/declare ch q {:exclusive false :auto-delete false})
-    (lc/subscribe ch q message-handler {:auto-ack true}))
+
+(defn- start-connection []
+  (rmq/connect {:automatically-recover true :automatically-recover-topology true}))
+
+(defn- stop-connection [conn]
+  (rmq/close conn))
+
+(defstate connection
+          :start (start-connection)
+          :stop (stop-connection connection))
+
+(defn declare-queue
+  [^String q]
+  (lq/declare (lch/open connection) q {:exclusive false :auto-delete false}))
+
+(defn start-consumer-on-queue
+  [^String q]
+  (lc/subscribe (lch/open connection) q message-handler {:auto-ack true}))
 
 (defn -main
   [& args]
-  (let [conn (rmq/connect {:automatically-recover true :automatically-recover-topology true})
-        q    "langohr.examples.recovery.example1.q"
+  (mount/start #'connection)
+  (let [q    "langohr.examples.recovery.example1.q"
         x    ""]
-    (println (format "[main] Connected. Channel id: %d" (.getChannelNumber ch)))
-    (start-consumer (lch/open conn) q)
-    (rmq/on-recovery (lch/open conn) (fn [ch]
-                          (println "[main] Channel recovered. Recovering topology...")
-                          (start-consumer (lch/open conn) q)))
+    (declare-queue q)
+    (start-consumer-on-queue q)
+
     (while true
       (Thread/sleep 1000)
       (try
         (println "publishing a message: hello")
-        (lb/publish (lch/open conn) x q "hello")
+        (lb/publish (lch/open connection) x q "hello")
         (catch AlreadyClosedException ace
           (comment "Happens when you publish while the connection is down"))
         (catch IOException ioe
           (comment "ditto"))))))
-
