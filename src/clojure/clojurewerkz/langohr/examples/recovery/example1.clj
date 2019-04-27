@@ -21,20 +21,21 @@
 
 (defn -main
   [& args]
-  (let [conn (rmq/connect {:automatically-recover true :automatically-recover-topology false})
-        ch   (lch/open conn)
+  (let [conn (rmq/connect {:automatically-recover true :automatically-recover-topology true})
         q    "langohr.examples.recovery.example1.q"
         x    ""]
     (println (format "[main] Connected. Channel id: %d" (.getChannelNumber ch)))
-    (start-consumer ch q)
-    (rmq/on-recovery ch (fn [ch]
+    (start-consumer (lch/open conn) q)
+    (rmq/on-recovery (lch/open conn) (fn [ch]
                           (println "[main] Channel recovered. Recovering topology...")
-                          (start-consumer ch q)))
+                          (start-consumer (lch/open conn) q)))
     (while true
       (Thread/sleep 1000)
       (try
-        (lb/publish ch x q "hello")
+        (println "publishing a message: hello")
+        (lb/publish (lch/open conn) x q "hello")
         (catch AlreadyClosedException ace
           (comment "Happens when you publish while the connection is down"))
         (catch IOException ioe
           (comment "ditto"))))))
+
